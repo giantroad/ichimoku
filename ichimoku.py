@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import sys
 import time
 
 import numpy
@@ -12,11 +13,15 @@ import matplotlib.ticker as ticker
 import matplotlib.dates as mdates
 import mplfinance as mpf
 import matplotlib.pyplot as plt
+from PyQt5.QtWidgets import QApplication, QMessageBox
 from mpl_finance import candlestick_ohlc, candlestick2_ohlc
 import numpy as np
 import decimal
+import sys
 
-# Press the green button in the gutter to run the script.
+from PyQt5 import QtGui, QtWidgets, QtCore
+from PyQt5.QtWidgets import QDialog, QApplication
+from primodial import Ui_Dialog
 from numpy import long
 
 fig, ax = plt.subplots()
@@ -210,23 +215,57 @@ class Ichimoku():
 
 
 def ashareslist(excel):
-  #  ashareExcel = openpyxl.load_workbook(excel)
-    lsh = pd.read_excel(excel, sheet_name='上证', header=None, dtype=np.str)
+    #  ashareExcel = openpyxl.load_workbook(excel)
+    lsh = pd.read_excel(excel, sheet_name='上证', header=None, dtype=str)
     ashares = pd.DataFrame()
-    ashares = ashares.append(pd.read_excel(excel, sheet_name='深证', header=None, dtype=np.str)).append(pd.read_excel(excel, sheet_name='创业板', header=None, dtype=np.str))
+    ashares = ashares.append(pd.read_excel(excel, sheet_name='深证', header=None, dtype=str)).append(
+        pd.read_excel(excel, sheet_name='创业板', header=None, dtype=str))
     ashares[1] = ashares[1] + '.SZ'
     lsh[1] = lsh[1] + '.SH'
     ashares = ashares.append(lsh)
     return ashares
 
 
-if __name__ == '__main__':
-    ts.set_token('30f769d97409f6b9ff133558703d4cbe8302b4e6452330b2c11af044')
-    pro = ts.pro_api()
-    ashares = ashareslist('ashares.xlsx')
-    df = pro.daily(ts_code='300902.SZ', start_date='20200101', end_date='20210811')
+class DialogDemo(QDialog, Ui_Dialog):
+    share = ''
 
-    #   df2 = pd.read_csv('./sample-data/ohcl_sample.csv', index_col=0,)
-    df = df.iloc[::-1]
-    lastday = len(df)
-    vision(df)
+    def __init__(self, parent=None):
+        super(DialogDemo, self).__init__(parent)
+        self.setupUi(self)
+
+    def ichimoku_push(self):
+        sharesId = self.share.split(' ')[0]
+        self.ichimokuplot(sharesId, '20200101', '20210811')
+
+    def list_click(self, item):
+        self.share = item.text()
+        print(DialogDemo.share)
+
+    #  QMessageBox.information(self, "ListWidget", "你选择了: " + DialogDemo.share)
+
+    def createDialog(self, ashares):
+        app = QApplication(sys.argv)
+        # 创建对话框
+        # 显示对话框
+        self.listWidget.addItems(ashares[1] + ' ' + ashares[0])
+        # binding
+        self.listWidget.itemClicked.connect(self.list_click)
+        self.pushButton_2.clicked.connect(self.ichimoku_push)
+        #
+        self.show()
+        sys.exit(app.exec_())
+
+    def ichimokuplot(self, ts_code, start_date, end_date):
+        global lastday
+        ts.set_token('30f769d97409f6b9ff133558703d4cbe8302b4e6452330b2c11af044')
+        pro = ts.pro_api()
+        df = pro.daily(ts_code=ts_code, start_date=start_date, end_date=end_date)
+        df = df.iloc[::-1]
+        lastday = len(df)
+        vision(df)
+
+
+if __name__ == '__main__':
+    ashares = ashareslist('ashares.xlsx')
+    diglogdemo = DialogDemo()
+    diglogdemo.createDialog(ashares=ashares)
