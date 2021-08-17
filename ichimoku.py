@@ -2,8 +2,8 @@
 import time
 
 import numpy
+import openpyxl as openpyxl
 import pandas
-
 import pandas as pd
 import tushare as ts
 import numpy as np
@@ -120,7 +120,7 @@ class Ichimoku():
         return ohcl_df
 
     def plot(self):
-        global xminnow,xmaxnow
+        global xminnow, xmaxnow
         fig.canvas.mpl_connect('scroll_event', call_back)
         fig.canvas.mpl_connect('button_press_event', button_press_callback)
         fig.canvas.mpl_connect('motion_notify_event', motion_notify_callback)
@@ -209,10 +209,23 @@ class Ichimoku():
             x += decimal.Decimal(jump)
 
 
+def ashareslist(excel):
+  #  ashareExcel = openpyxl.load_workbook(excel)
+    lsh = pd.read_excel(excel, sheet_name='上证', header=None, dtype=np.str)
+    ashares = pd.DataFrame()
+    ashares = ashares.append(pd.read_excel(excel, sheet_name='深证', header=None, dtype=np.str)).append(pd.read_excel(excel, sheet_name='创业板', header=None, dtype=np.str))
+    ashares[1] = ashares[1] + '.SZ'
+    lsh[1] = lsh[1] + '.SH'
+    ashares = ashares.append(lsh)
+    return ashares
+
+
 if __name__ == '__main__':
     ts.set_token('30f769d97409f6b9ff133558703d4cbe8302b4e6452330b2c11af044')
     pro = ts.pro_api()
-    df = pro.daily(ts_code='600498.SH', start_date='20200101', end_date='20210811')
+    ashares = ashareslist('ashares.xlsx')
+    df = pro.daily(ts_code='300902.SZ', start_date='20200101', end_date='20210811')
+
     #   df2 = pd.read_csv('./sample-data/ohcl_sample.csv', index_col=0,)
     df = df.iloc[::-1]
     lastday = len(df)
