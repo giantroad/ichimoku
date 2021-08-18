@@ -38,9 +38,9 @@
      <property name="geometry">
       <rect>
        <x>0</x>
-       <y>30</y>
+       <y>20</y>
        <width>151</width>
-       <height>331</height>
+       <height>341</height>
       </rect>
      </property>
     </widget>
@@ -54,13 +54,13 @@
       </rect>
      </property>
     </widget>
-    <widget class="QTextEdit" name="textEdit">
+    <widget class="QLineEdit" name="share">
      <property name="geometry">
       <rect>
        <x>0</x>
        <y>0</y>
        <width>151</width>
-       <height>31</height>
+       <height>21</height>
       </rect>
      </property>
     </widget>

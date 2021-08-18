@@ -232,34 +232,38 @@ def ashareslist(excel):
 
 
 class DialogDemo(QDialog, Ui_Dialog):
-    share = ''
 
-    def __init__(self, parent=None):
+    def __init__(self, shares, parent=None):
+        self.ashares = shares
         super(DialogDemo, self).__init__(parent)
         self.setupUi(self)
 
     def ichimoku_push(self):
         sharesId = self.share.split(' ')[0]
-        sharesName = self.share.split(' ')[1]
         t1 = time.strftime('%Y%m%d')
         t2 = (datetime.now() - relativedelta(years=1)).strftime('%Y%m%d')
         self.ichimokuplot(sharesId, self.share, t2, t1)
 
     def list_click(self, item):
         self.share = item.text()
-        print(DialogDemo.share)
+        print(self.share)
 
-    #  QMessageBox.information(self, "ListWidget", "你选择了: " + DialogDemo.share)
+    def text_edit_search(self):
+        text = self.shareSearch.text()
+        ls = self.ashares
+        ls = ls[ls[0].str.contains(text) | ls[1].str.contains(text)]
+        self.listWidget.clear()
+        self.listWidget.addItems(ls[1] + ' ' + ls[0])
 
-    def createDialog(self, ashares):
+    def createDialog(self):
         app = QApplication(sys.argv)
         # 创建对话框
         # 显示对话框
-        self.listWidget.addItems(ashares[1] + ' ' + ashares[0])
+        self.listWidget.addItems(self.ashares[1] + ' ' + self.ashares[0])
         # binding
         self.listWidget.itemClicked.connect(self.list_click)
         self.pushButton_2.clicked.connect(self.ichimoku_push)
-        #
+        self.shareSearch.textChanged.connect(self.text_edit_search)
         self.show()
         sys.exit(app.exec_())
 
@@ -291,6 +295,6 @@ class Strategy:
 
 if __name__ == '__main__':
     ashares = ashareslist('ashares.xlsx')
-    s = Strategy(ashares)
-    diglogdemo = DialogDemo()
-    diglogdemo.createDialog(ashares=ashares)
+    #  s = Strategy(ashares)
+    diglogdemo = DialogDemo(ashares)
+    diglogdemo.createDialog()
