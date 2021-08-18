@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import sys
 import time
 
@@ -26,7 +27,12 @@ from primodial import Ui_Dialog
 from numpy import long
 
 fig, ax = plt.subplots()
+datadir = './data/'
 x, y, lastday, xminnow, xmaxnow = 1, 1, 0, 0, 0
+
+
+def nameStrategy(ts_code):
+    return ts_code + '-' + time.strftime('%Y%m%d') + '.xlsx'
 
 
 def vision(data, ts_name):
@@ -248,6 +254,12 @@ class DialogDemo(QDialog, Ui_Dialog):
         self.share = item.text()
         print(self.share)
 
+    def double_click(self):
+        sharesId = self.share.split(' ')[0]
+        t1 = time.strftime('%Y%m%d')
+        t2 = (datetime.now() - relativedelta(years=1)).strftime('%Y%m%d')
+        self.ichimokuplot(sharesId, self.share, t2, t1)
+
     def text_edit_search(self):
         text = self.shareSearch.text()
         ls = self.ashares
@@ -264,6 +276,7 @@ class DialogDemo(QDialog, Ui_Dialog):
         self.listWidget.itemClicked.connect(self.list_click)
         self.pushButton_2.clicked.connect(self.ichimoku_push)
         self.shareSearch.textChanged.connect(self.text_edit_search)
+        self.listWidget.doubleClicked.connect(self.double_click)
         self.show()
         sys.exit(app.exec_())
 
@@ -283,18 +296,22 @@ class DialogDemo(QDialog, Ui_Dialog):
 class Strategy:
 
     def __init__(self, shares):
-        self.s = shares
-        l1 = self.strategy1()
-        print(1)
-
-    def strategy1(self):
-        i = Ichimoku(self.s)
-        ilist = i.run()
-        return ilist
+        self.sl = shares
+        t1 = time.strftime('%Y%m%d')
+        t2 = (datetime.now() - relativedelta(years=1)).strftime('%Y%m%d')
+        ts.set_token('30f769d97409f6b9ff133558703d4cbe8302b4e6452330b2c11af044')
+        pro = ts.pro_api()
+        filelist = os.listdir(datadir)
+        if filelist.__contains__(nameStrategy(self.sl[1][0])): return
+        for tmp in self.sl.iterrows():
+            df = pro.daily(ts_code=tmp[1][1], start_date=t2, end_date=t1)
+            df = df.iloc[::-1]
+            df.to_excel(datadir + nameStrategy(tmp[1][1]))
 
 
 if __name__ == '__main__':
     ashares = ashareslist('ashares.xlsx')
-    #  s = Strategy(ashares)
+    ashares.reset_index(drop=True, inplace=True)
+    s = Strategy(ashares)
     diglogdemo = DialogDemo(ashares)
     diglogdemo.createDialog()
