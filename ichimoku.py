@@ -14,6 +14,7 @@ import matplotlib.dates as mdates
 import mplfinance as mpf
 import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import QApplication, QMessageBox
+from dateutil.relativedelta import relativedelta
 from mpl_finance import candlestick_ohlc, candlestick2_ohlc
 import numpy as np
 import decimal
@@ -28,10 +29,10 @@ fig, ax = plt.subplots()
 x, y, lastday, xminnow, xmaxnow = 1, 1, 0, 0, 0
 
 
-def vision(data):
+def vision(data, ts_name):
     ichimoku = Ichimoku(data)
     ichimoku.run()
-    ichimoku.plot()
+    ichimoku.plot(ts_name)
 
 
 def call_back(event):
@@ -66,14 +67,14 @@ def motion_notify_callback(event):
     x = xnow
     point = (event.xdata, event.ydata, xminnow, xmaxnow)
     print(point)
-    plt.show()
+    fig.canvas.draw_idle()
 
 
 class Ichimoku():
     """
-    @param: ohcl_df <DataFrame> 
+    @param: ohcl_df <DataFrame>
 
-    Required columns of ohcl_df are: 
+    Required columns of ohcl_df are:
         Date<Float>,Open<Float>,High<Float>,Close<Float>,Low<Float>
     """
 
@@ -107,13 +108,13 @@ class Ichimoku():
         tenkan_sen_high = ohcl_df["high"].rolling(window=tenkan_window).max()
         tenkan_sen_low = ohcl_df["low"].rolling(window=tenkan_window).min()
         ohcl_df['tenkan_sen'] = (tenkan_sen_high + tenkan_sen_low) / 2
-        # Kijun 
+        # Kijun
         kijun_sen_high = ohcl_df["high"].rolling(window=kijun_window).max()
         kijun_sen_low = ohcl_df["low"].rolling(window=kijun_window).min()
         ohcl_df['kijun_sen'] = (kijun_sen_high + kijun_sen_low) / 2
-        # Senkou Span A 
+        # Senkou Span A
         ohcl_df['senkou_span_a'] = ((ohcl_df['tenkan_sen'] + ohcl_df['kijun_sen']) / 2).shift(cloud_displacement)
-        # Senkou Span B 
+        # Senkou Span B
         senkou_span_b_high = ohcl_df["high"].rolling(window=senkou_span_b_window).max()
         senkou_span_b_low = ohcl_df["low"].rolling(window=senkou_span_b_window).min()
         ohcl_df['senkou_span_b'] = ((senkou_span_b_high + senkou_span_b_low) / 2).shift(cloud_displacement)
@@ -124,20 +125,24 @@ class Ichimoku():
         ohcl_df.index = ohcl_df['trade_date']
         return ohcl_df
 
-    def plot(self):
+    def plot(self, ts_name):
         global xminnow, xmaxnow
         fig.canvas.mpl_connect('scroll_event', call_back)
         fig.canvas.mpl_connect('button_press_event', button_press_callback)
         fig.canvas.mpl_connect('motion_notify_event', motion_notify_callback)
         self.plot_candlesticks(fig, ax)
         self.plot_ichimoku(fig, ax)
-        self.pretty_plot(fig, ax)
+        self.pretty_plot(fig, ax, ts_name)
         plt.xlim(xmin=lastday - 200, xmax=lastday)
         xminnow = lastday - 200
         xmaxnow = lastday
+
+        plt.xlim(xmin=xminnow + 80, xmax=xmaxnow + 80)
+        mng = plt.get_current_fig_manager()
+        mng.window.showMaximized()
         plt.show()
 
-    def pretty_plot(self, fig, ax):
+    def pretty_plot(self, fig, ax, ts_name):
         ax.legend()
         fig.autofmt_xdate()
         ax.set_xticks(range(len(self.ohcl_df['trade_date'])))
@@ -150,12 +155,12 @@ class Ichimoku():
         ax.xaxis.set_major_locator(ticker.MultipleLocator(4))
 
         # Chart info
-        title = 'ichimoku'
+        title = ts_name
         bgcolor = '#f0f0f0'
         grid_color = '#363c4e'
         spines_color = '#0f0f0f'
         # Axes
-        plt.title(title, color='black')
+        plt.title(title, color='black', fontproperties="SimHei")
 
         ax.set_facecolor(bgcolor)
         ax.grid(linestyle='-', linewidth='0.5', color=grid_color, alpha=0.4)
@@ -186,11 +191,11 @@ class Ichimoku():
         plt.plot(date_axis, d2['chikou_span'], label="chikou", color="black", alpha=0.65, linewidth=0.5)
         # green cloud
         ax.fill_between(date_axis, d2['senkou_span_a'], d2['senkou_span_b'],
-                        where=d2['senkou_span_a'] > d2['senkou_span_b'], facecolor='#008000', interpolate=True,
+                        where=d2['senkou_span_a'] > d2['senkou_span_b'], facecolor='#008000',
                         alpha=0.25)
         # red cloud
         ax.fill_between(date_axis, d2['senkou_span_a'], d2['senkou_span_b'],
-                        where=d2['senkou_span_b'] > d2['senkou_span_a'], facecolor='#ff0000', interpolate=True,
+                        where=d2['senkou_span_b'] > d2['senkou_span_a'], facecolor='#ff0000',
                         alpha=0.25)
 
     def plot_candlesticks(self, fig, ax, view_limit=10):
@@ -203,7 +208,7 @@ class Ichimoku():
         # candlestick_ohlc(ax, candlesticks_df.values, width=0.5, colorup='#83b987', colordown='#eb4d5c', alpha=0.5)
 
         candlestick2_ohlc(ax, candlesticks_df['open'], candlesticks_df['high'], candlesticks_df['low'],
-                          candlesticks_df['close'], width=0.6, colorup='#83b987', colordown='#eb4d5c', alpha=0.5)
+                          candlesticks_df['close'], width=0.6, colorup='#83b987', colordown='#eb4d5c', alpha=1)
 
     # mpf.plot(candlesticks_df, width=0.6, colorup='#83b987', colordown='#eb4d5c', alpha=0.5)
 
@@ -235,7 +240,10 @@ class DialogDemo(QDialog, Ui_Dialog):
 
     def ichimoku_push(self):
         sharesId = self.share.split(' ')[0]
-        self.ichimokuplot(sharesId, '20200101', '20210811')
+        sharesName = self.share.split(' ')[1]
+        t1 = time.strftime('%Y%m%d')
+        t2 = (datetime.now() - relativedelta(years=1)).strftime('%Y%m%d')
+        self.ichimokuplot(sharesId, self.share, t2, t1)
 
     def list_click(self, item):
         self.share = item.text()
@@ -255,17 +263,34 @@ class DialogDemo(QDialog, Ui_Dialog):
         self.show()
         sys.exit(app.exec_())
 
-    def ichimokuplot(self, ts_code, start_date, end_date):
+    def ichimokuplot(self, ts_code, ts_name, start_date, end_date):
         global lastday
+        global fig, ax
+        plt.close(fig)
+        fig, ax = plt.subplots()
         ts.set_token('30f769d97409f6b9ff133558703d4cbe8302b4e6452330b2c11af044')
         pro = ts.pro_api()
         df = pro.daily(ts_code=ts_code, start_date=start_date, end_date=end_date)
         df = df.iloc[::-1]
         lastday = len(df)
-        vision(df)
+        vision(df, ts_name)
+
+
+class Strategy:
+
+    def __init__(self, shares):
+        self.s = shares
+        l1 = self.strategy1()
+        print(1)
+
+    def strategy1(self):
+        i = Ichimoku(self.s)
+        ilist = i.run()
+        return ilist
 
 
 if __name__ == '__main__':
     ashares = ashareslist('ashares.xlsx')
+    s = Strategy(ashares)
     diglogdemo = DialogDemo()
     diglogdemo.createDialog(ashares=ashares)
