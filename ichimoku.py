@@ -26,13 +26,41 @@ from PyQt5.QtWidgets import QDialog, QApplication
 from primodial import Ui_Dialog
 from numpy import long
 
+mode = 1
 fig, ax = plt.subplots()
 datadir = './data/'
+strategydir = './strategy/'
 x, y, lastday, xminnow, xmaxnow = 1, 1, 0, 0, 0
 
 
-def nameStrategy(ts_code):
-    return ts_code + '-' + time.strftime('%Y%m%d') + '.xlsx'
+# to avoid data collection, change return value to suffix of the file in 'data' dictionary -> enter offline mode!
+def endDate():
+    return time.strftime('%Y%m%d')
+
+
+# return '20210818'
+
+
+# 1:excel 0:tushare
+def getDataByTscode(ts_code, mode):
+    if mode == 1:
+        filedir = os.path.join(datadir, nameStrategy(ts_code))
+        byexcel = pd.read_excel(filedir)
+        byexcel.index = byexcel['Unnamed: 0']
+        byexcel = byexcel.drop(columns=['Unnamed: 0'])
+        return byexcel
+    if mode == 0:
+        ts.set_token('30f769d97409f6b9ff133558703d4cbe8302b4e6452330b2c11af044')
+        pro = ts.pro_api()
+        t1 = endDate()
+        t2 = (datetime.now() - relativedelta(years=1)).strftime('%Y%m%d')
+        df = pro.daily(ts_code=ts_code, start_date=t2, end_date=t1)
+        df = df.iloc[::-1]
+        return df
+
+
+def nameStrategy(code):
+    return code + '-' + endDate() + '.xlsx'
 
 
 def vision(data, ts_name):
@@ -86,7 +114,7 @@ class Ichimoku():
 
     def __init__(self, ohcl_df):
         self.ohcl_df = ohcl_df
-        ohcl_df['trade_date'] = pandas.to_datetime(ohcl_df['trade_date'])
+        ohcl_df['trade_date'] = pandas.to_datetime(ohcl_df['trade_date'].astype(str))
 
     def run(self):
         tenkan_window = 9
@@ -239,16 +267,30 @@ def ashareslist(excel):
 
 class DialogDemo(QDialog, Ui_Dialog):
 
-    def __init__(self, shares, parent=None):
+    def __init__(self, shares, strategy, parent=None):
         self.ashares = shares
+        self.strategy = strategy
         super(DialogDemo, self).__init__(parent)
         self.setupUi(self)
 
     def ichimoku_push(self):
         sharesId = self.share.split(' ')[0]
-        t1 = time.strftime('%Y%m%d')
+        t1 = endDate()
         t2 = (datetime.now() - relativedelta(years=1)).strftime('%Y%m%d')
         self.ichimokuplot(sharesId, self.share, t2, t1)
+
+    def strategy_push(self):
+        stext = self.comboBox.currentText()
+        self.listWidget.clear()
+        if stext == 'All stocks':
+            self.listWidget.addItems(self.ashares[1] + ' ' + self.ashares[0])
+        if stext == 'ichimoku strategy':
+            filelist = os.listdir(strategydir)
+            if filelist.__contains__(nameStrategy('strategy1')):
+                df = pd.read_excel(strategydir+nameStrategy('strategy1'), index_col=0)
+            else:
+                df = self.strategy.strategy1()
+            self.listWidget.addItems(df[0])
 
     def list_click(self, item):
         self.share = item.text()
@@ -256,7 +298,7 @@ class DialogDemo(QDialog, Ui_Dialog):
 
     def double_click(self):
         sharesId = self.share.split(' ')[0]
-        t1 = time.strftime('%Y%m%d')
+        t1 = endDate()
         t2 = (datetime.now() - relativedelta(years=1)).strftime('%Y%m%d')
         self.ichimokuplot(sharesId, self.share, t2, t1)
 
@@ -277,6 +319,10 @@ class DialogDemo(QDialog, Ui_Dialog):
         self.pushButton_2.clicked.connect(self.ichimoku_push)
         self.shareSearch.textChanged.connect(self.text_edit_search)
         self.listWidget.doubleClicked.connect(self.double_click)
+        self.listWidget.doubleClicked.connect(self.double_click)
+        self.pushButton.clicked.connect(self.strategy_push)
+        self.comboBox.addItem('All stocks')
+        self.comboBox.addItem('ichimoku strategy')
         self.show()
         sys.exit(app.exec_())
 
@@ -285,10 +331,7 @@ class DialogDemo(QDialog, Ui_Dialog):
         global fig, ax
         plt.close(fig)
         fig, ax = plt.subplots()
-        ts.set_token('30f769d97409f6b9ff133558703d4cbe8302b4e6452330b2c11af044')
-        pro = ts.pro_api()
-        df = pro.daily(ts_code=ts_code, start_date=start_date, end_date=end_date)
-        df = df.iloc[::-1]
+        df = getDataByTscode(ts_code, mode)
         lastday = len(df)
         vision(df, ts_name)
 
@@ -297,21 +340,48 @@ class Strategy:
 
     def __init__(self, shares):
         self.sl = shares
-        t1 = time.strftime('%Y%m%d')
+        filelist = os.listdir(datadir)
+        if filelist.__contains__(nameStrategy(self.sl[1][0])): return
+        t1 = endDate()
         t2 = (datetime.now() - relativedelta(years=1)).strftime('%Y%m%d')
         ts.set_token('30f769d97409f6b9ff133558703d4cbe8302b4e6452330b2c11af044')
         pro = ts.pro_api()
-        filelist = os.listdir(datadir)
-        if filelist.__contains__(nameStrategy(self.sl[1][0])): return
+        for i in filelist: os.remove(os.path.join(datadir, i))
         for tmp in self.sl.iterrows():
             df = pro.daily(ts_code=tmp[1][1], start_date=t2, end_date=t1)
             df = df.iloc[::-1]
             df.to_excel(datadir + nameStrategy(tmp[1][1]))
+
+    # ichimoku strategy -> seeking Low priced stocks with potential
+    def strategy1(self):
+        sl = self.sl
+        res = []
+        for s in sl[1]:
+            data = getDataByTscode(s, mode)
+            print(s)
+            if len(data) == 0: continue
+            ichimoku = Ichimoku(data)
+            i = ichimoku.run()
+            if len(i[(i['chikou_span'].isna()) & (~i['open'].isna())]) == 0: continue
+            ldd = i[(i['chikou_span'].isna()) & (~i['open'].isna())].iloc[-1]  # lastdaydata
+            #
+            if ldd['tenkan_sen'] < ldd['kijun_sen']: continue
+            #
+            smin = min(ldd['senkou_span_a'], ldd['senkou_span_b'])
+            if ldd['high'] < smin: continue
+            #
+            if len(i[~i['chikou_span'].isna()]) == 0: continue
+            ckd = i[~i['chikou_span'].isna()].iloc[-1]  # chikouData
+            if (ckd['chikou_span'] < ckd['high']): continue
+            res.append(s + " " + sl[sl[1] == s][0].iloc[0])
+        df = pd.DataFrame(res)
+        df.to_excel(strategydir + nameStrategy('strategy1'))
+        return df
 
 
 if __name__ == '__main__':
     ashares = ashareslist('ashares.xlsx')
     ashares.reset_index(drop=True, inplace=True)
     s = Strategy(ashares)
-    diglogdemo = DialogDemo(ashares)
+    diglogdemo = DialogDemo(ashares, s)
     diglogdemo.createDialog()
