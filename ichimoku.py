@@ -26,12 +26,14 @@ from PyQt5.QtWidgets import QDialog, QApplication
 from primodial import Ui_Dialog
 from numpy import long
 
-mode = 1
+mode = 0
 fig, ax = plt.subplots()
 datadir = './data/'
 strategydir = './strategy/'
 x, y, lastday, xminnow, xmaxnow = 1, 1, 0, 0, 0
 
+
+# 云层细代表震荡，越来越细改变的趋势也越大，要看有没有最高点
 
 # to avoid data collection, change return value to suffix of the file in 'data' dictionary -> enter offline mode!
 def endDate():
@@ -157,6 +159,10 @@ class Ichimoku():
         self.ohcl_df = ohcl_df
         ohcl_df['trade_date'] = mdates.date2num(ohcl_df['trade_date'])
         ohcl_df.index = ohcl_df['trade_date']
+
+        ohcl_df['MA10'] = ohcl_df['close'].rolling(10).mean()
+        ohcl_df['MA5'] = ohcl_df['close'].rolling(5).mean()
+        ohcl_df['MA20'] = ohcl_df['close'].rolling(20).mean()
         return ohcl_df
 
     def plot(self, ts_name):
@@ -214,7 +220,8 @@ class Ichimoku():
         ax.autoscale_view()
 
     def plot_ichimoku(self, fig, ax, view_limit=100):
-        d2 = self.ohcl_df.loc[:, ['tenkan_sen', 'kijun_sen', 'senkou_span_a', 'senkou_span_b', 'chikou_span']]
+        d2 = self.ohcl_df.loc[:,
+             ['tenkan_sen', 'kijun_sen', 'senkou_span_a', 'senkou_span_b', 'chikou_span', 'MA5', 'MA10', 'MA20']]
         #  d2 = d2.tail(view_limit)
         date_axis = range(0, len(d2))
         # ichimoku
@@ -223,6 +230,9 @@ class Ichimoku():
         plt.plot(date_axis, d2['senkou_span_a'], label="span a", color="#008000", alpha=0.65, linewidth=0.5)
         plt.plot(date_axis, d2['senkou_span_b'], label="span b", color="#ff0000", alpha=0.65, linewidth=0.5)
         plt.plot(date_axis, d2['chikou_span'], label="chikou", color="black", alpha=0.65, linewidth=0.5)
+        plt.plot(date_axis, d2['MA5'], label="MA5", color="green", alpha=0.8, linewidth=0.6)
+        plt.plot(date_axis, d2['MA10'], label="MA10", color="blue", alpha=0.8, linewidth=1.2)
+        plt.plot(date_axis, d2['MA20'], label="MA20", color="yellow", alpha=0.8, linewidth=0.6)
         # green cloud
         ax.fill_between(date_axis, d2['senkou_span_a'], d2['senkou_span_b'],
                         where=d2['senkou_span_a'] > d2['senkou_span_b'], facecolor='#008000',
@@ -254,7 +264,6 @@ class Ichimoku():
 
 
 def ashareslist(excel):
-    #  ashareExcel = openpyxl.load_workbook(excel)
     lsh = pd.read_excel(excel, sheet_name='上证', header=None, dtype=str)
     ashares = pd.DataFrame()
     ashares = ashares.append(pd.read_excel(excel, sheet_name='深证', header=None, dtype=str)).append(
@@ -269,6 +278,7 @@ class DialogDemo(QDialog, Ui_Dialog):
 
     def __init__(self, shares, strategy, parent=None):
         self.ashares = shares
+        self.allshares = shares
         self.strategy = strategy
         super(DialogDemo, self).__init__(parent)
         self.setupUi(self)
@@ -284,13 +294,28 @@ class DialogDemo(QDialog, Ui_Dialog):
         self.listWidget.clear()
         if stext == 'All stocks':
             self.listWidget.addItems(self.ashares[1] + ' ' + self.ashares[0])
+            self.ashares = self.allshares
         if stext == 'ichimoku strategy':
             filelist = os.listdir(strategydir)
             if filelist.__contains__(nameStrategy('strategy1')):
-                df = pd.read_excel(strategydir+nameStrategy('strategy1'), index_col=0)
+                df = pd.read_excel(strategydir + nameStrategy('strategy1'), index_col=0)
             else:
                 df = self.strategy.strategy1()
             self.listWidget.addItems(df[0])
+            df[1] = df[0].apply(lambda x: x.split(' ')[1])
+            df[0] = df[0].apply(lambda x: x.split(' ')[0])
+            self.ashares = df
+
+        if stext == 'trend tracking strategy':
+            filelist = os.listdir(strategydir)
+            if filelist.__contains__(nameStrategy('strategy2')):
+                df = pd.read_excel(strategydir + nameStrategy('strategy2'), index_col=0)
+            else:
+                df = self.strategy.strategy2()
+            self.listWidget.addItems(df[0])
+            df[1] = df[0].apply(lambda x: x.split(' ')[1])
+            df[0] = df[0].apply(lambda x: x.split(' ')[0])
+            self.ashares = df
 
     def list_click(self, item):
         self.share = item.text()
@@ -323,6 +348,7 @@ class DialogDemo(QDialog, Ui_Dialog):
         self.pushButton.clicked.connect(self.strategy_push)
         self.comboBox.addItem('All stocks')
         self.comboBox.addItem('ichimoku strategy')
+        self.comboBox.addItem('trend tracking strategy')
         self.show()
         sys.exit(app.exec_())
 
@@ -357,7 +383,7 @@ class Strategy:
         sl = self.sl
         res = []
         for s in sl[1]:
-            data = getDataByTscode(s, mode)
+            data = getDataByTscode(s, 1)
             print(s)
             if len(data) == 0: continue
             ichimoku = Ichimoku(data)
@@ -372,15 +398,59 @@ class Strategy:
             #
             if len(i[~i['chikou_span'].isna()]) == 0: continue
             ckd = i[~i['chikou_span'].isna()].iloc[-1]  # chikouData
-            if (ckd['chikou_span'] < ckd['high']): continue
+            if ckd['chikou_span'] < ckd['high']: continue
+            #
             res.append(s + " " + sl[sl[1] == s][0].iloc[0])
         df = pd.DataFrame(res)
+        filelist = os.listdir(strategydir)
+        for i in filelist:
+            if i.__contains__('strategy1'): os.remove(os.path.join(strategydir, i))
         df.to_excel(strategydir + nameStrategy('strategy1'))
         return df
 
+    # average strategy
+    def strategy2(self):
+        sl = self.sl
+        res = []
+        for s in sl[1]:
+            data = getDataByTscode(s, 1)
+            print(s)
+            if len(data) == 0: continue
+            # average
+            data['MA10'] = data['close'].rolling(10).mean()
+            data['MA10diff'] = data['MA10'].diff()
+            if len(data) <= 30: continue
+            x = -21
+            MAdata = data[x:-1]
+            xx = -x - 2
+            if (MAdata.iloc[xx]['MA10diff'] < 0) | (MAdata.iloc[xx - 1]['MA10diff'] < 0): continue
+            if (MAdata.iloc[xx]['high'] < MAdata.iloc[xx]['MA10']) | (
+                    MAdata.iloc[xx - 1]['high'] < MAdata.iloc[xx - 1]['MA10']): continue
+            MAdata['negativebias'] = MAdata['low'] - MAdata['MA10']
+            if MAdata['negativebias'].min() > 0: continue
+            if MAdata[MAdata.MA10 == MAdata['MA10'].min()].index[0] != \
+                    MAdata[MAdata.negativebias == MAdata['negativebias'].min()].index[0]: continue
+            res.append(s + " " + sl[sl[1] == s][0].iloc[0])
+        df = pd.DataFrame(res)
+        filelist = os.listdir(strategydir)
+        for i in filelist:
+            if i.__contains__('strategy2'): os.remove(os.path.join(strategydir, i))
+        df.to_excel(strategydir + nameStrategy('strategy2'))
+        return df
+
+
+def getshares():
+    # return ashareslist('ashares.xlsx')
+    ts.set_token('30f769d97409f6b9ff133558703d4cbe8302b4e6452330b2c11af044')
+    pro = ts.pro_api()
+    data = pro.stock_basic(exchange='', list_status='L', fields='name, ts_code')
+    data.rename(columns={"name": 0, "ts_code": 1}, inplace=True)
+    data = data[[0, 1]]
+    return data
+
 
 if __name__ == '__main__':
-    ashares = ashareslist('ashares.xlsx')
+    ashares = getshares()
     ashares.reset_index(drop=True, inplace=True)
     s = Strategy(ashares)
     diglogdemo = DialogDemo(ashares, s)
