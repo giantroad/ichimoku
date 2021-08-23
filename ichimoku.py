@@ -418,11 +418,26 @@ class Strategy:
             if len(data) == 0: continue
             # average
             data['MA10'] = data['close'].rolling(10).mean()
+            data['MA100'] = data['close'].rolling(100).mean()
             data['MA10diff'] = data['MA10'].diff()
+            # volatility
+            data['std10'] = data['close'].rolling(10).std(ddof=0).rolling(10).mean()
             if len(data) <= 30: continue
             x = -21
             MAdata = data[x:-1]
             xx = -x - 2
+            #
+            data60 = data[-61:-1]
+            data180 = data[-181:-1]
+            data250 = data[-251:-1]
+            min60 = data60['low'].min()
+            max60 = data60['high'].max()
+            min180 = data180['low'].min()
+            max180 = data180['high'].max()
+            min250 = data250['low'].min()
+            max250 = data250['high'].max()
+            if (min60 * 1.3 > max60) | (min180 * 1.6 > max180) | (min250 * 2 > max250) : continue
+            if (MAdata.iloc[xx]['std10'] < MAdata.iloc[xx-1]['std10']) | (MAdata.iloc[xx]['MA10'] < MAdata.iloc[xx-1]['MA100']): continue
             if (MAdata.iloc[xx]['MA10diff'] < 0) | (MAdata.iloc[xx - 1]['MA10diff'] < 0): continue
             if (MAdata.iloc[xx]['high'] < MAdata.iloc[xx]['MA10']) | (
                     MAdata.iloc[xx - 1]['high'] < MAdata.iloc[xx - 1]['MA10']): continue
