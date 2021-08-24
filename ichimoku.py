@@ -25,7 +25,7 @@ from PyQt5 import QtGui, QtWidgets, QtCore
 from PyQt5.QtWidgets import QDialog, QApplication
 from primodial import Ui_Dialog
 from numpy import long
-
+#author : ye
 mode = 0
 fig, ax = plt.subplots()
 datadir = './data/'
@@ -297,22 +297,14 @@ class DialogDemo(QDialog, Ui_Dialog):
             self.listWidget.addItems(self.ashares[1] + ' ' + self.ashares[0])
             self.ashares = self.allshares
         if stext == 'ichimoku strategy':
-            filelist = os.listdir(strategydir)
-            if filelist.__contains__(nameStrategy('strategy1')):
-                df = pd.read_excel(strategydir + nameStrategy('strategy1'), index_col=0)
-            else:
-                df = self.strategy.strategy1()
+            df = self.strategy.strategy1()
             self.listWidget.addItems(df[0])
             df[1] = df[0].apply(lambda x: x.split(' ')[1])
             df[0] = df[0].apply(lambda x: x.split(' ')[0])
             self.ashares = df
 
         if stext == 'trend tracking strategy':
-            filelist = os.listdir(strategydir)
-            if filelist.__contains__(nameStrategy('strategy2')):
-                df = pd.read_excel(strategydir + nameStrategy('strategy2'), index_col=0)
-            else:
-                df = self.strategy.strategy2()
+            df = self.strategy.strategy2()
             self.listWidget.addItems(df[0])
             df[1] = df[0].apply(lambda x: x.split(' ')[1])
             df[0] = df[0].apply(lambda x: x.split(' ')[0])
@@ -395,6 +387,9 @@ class Strategy:
 
     # ichimoku strategy -> seeking Low priced stocks with potential
     def strategy1(self):
+        filelist = os.listdir(strategydir)
+        if filelist.__contains__(nameStrategy('strategy1')):
+            return pd.read_excel(strategydir + nameStrategy('strategy1'), index_col=0)
         sl = self.sl
         res = []
         for s in sl[1]:
@@ -425,6 +420,9 @@ class Strategy:
 
     # average strategy
     def strategy2(self):
+        filelist = os.listdir(strategydir)
+        if filelist.__contains__(nameStrategy('strategy2')):
+            return pd.read_excel(strategydir + nameStrategy('strategy2'), index_col=0)
         sl = self.sl
         res = []
         for s in sl[1]:
@@ -526,6 +524,7 @@ if __name__ == '__main__':
     ashares = getshares()
     ashares.reset_index(drop=True, inplace=True)
     s = Strategy(ashares)
-
+    s.strategy1()
+    s.strategy2()
     diglogdemo = DialogDemo(ashares, s)
     diglogdemo.createDialog()
