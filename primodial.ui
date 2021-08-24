@@ -54,7 +54,7 @@
       </rect>
      </property>
     </widget>
-    <widget class="QLineEdit" name="share">
+    <widget class="QLineEdit" name="shareSearch">
      <property name="geometry">
       <rect>
        <x>0</x>
@@ -81,7 +81,7 @@
     <rect>
      <x>-10</x>
      <y>380</y>
-     <width>271</width>
+     <width>161</width>
      <height>81</height>
     </rect>
    </property>
@@ -92,7 +92,7 @@
   <widget class="QPushButton" name="pushButton_2">
    <property name="geometry">
     <rect>
-     <x>250</x>
+     <x>150</x>
      <y>380</y>
      <width>451</width>
      <height>81</height>
@@ -100,6 +100,19 @@
    </property>
    <property name="text">
     <string>Ichimoku</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_3">
+   <property name="geometry">
+    <rect>
+     <x>590</x>
+     <y>380</y>
+     <width>101</width>
+     <height>81</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>reset</string>
    </property>
   </widget>
  </widget>

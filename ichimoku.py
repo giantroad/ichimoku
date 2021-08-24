@@ -341,6 +341,20 @@ class DialogDemo(QDialog, Ui_Dialog):
         self.listWidget.clear()
         self.listWidget.addItems(ls[1] + ' ' + ls[0])
 
+    def reset_push(self):
+        filelist = os.listdir(datadir)
+        for i in filelist: os.remove(os.path.join(datadir, i))
+        filelist = os.listdir(strategydir)
+        for i in filelist: os.remove(os.path.join(strategydir, i))
+        filelist = os.listdir(financialdir)
+        for i in filelist: os.remove(os.path.join(financialdir, i))
+        self.ashares = getshares()
+        self.allshares = self.ashares
+        self.ashares.reset_index(drop=True, inplace=True)
+        self.strategy = Strategy(self.ashares)
+        self.strategy.strategy1()
+        self.strategy.strategy2()
+
     def createDialog(self):
         app = QApplication(sys.argv)
         # 创建对话框
@@ -349,6 +363,7 @@ class DialogDemo(QDialog, Ui_Dialog):
         # binding
         self.listWidget.itemClicked.connect(self.list_click)
         self.pushButton_2.clicked.connect(self.ichimoku_push)
+        self.pushButton_3.clicked.connect(self.reset_push)
         self.shareSearch.textChanged.connect(self.text_edit_search)
         self.listWidget.doubleClicked.connect(self.double_click)
         self.listWidget.doubleClicked.connect(self.double_click)
@@ -381,6 +396,7 @@ class Strategy:
         pro = ts.pro_api()
         for i in filelist: os.remove(os.path.join(datadir, i))
         for tmp in self.sl.iterrows():
+            print(tmp[1][1])
             df = pro.daily(ts_code=tmp[1][1], start_date=t2, end_date=t1)
             df = df.iloc[::-1]
             df.to_excel(datadir + nameStrategy(tmp[1][1]))
