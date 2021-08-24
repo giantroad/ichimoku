@@ -30,6 +30,7 @@ mode = 0
 fig, ax = plt.subplots()
 datadir = './data/'
 strategydir = './strategy/'
+financialdir = './financialdata/'
 x, y, lastday, xminnow, xmaxnow = 1, 1, 0, 0, 0
 
 
@@ -319,6 +320,17 @@ class DialogDemo(QDialog, Ui_Dialog):
 
     def list_click(self, item):
         self.share = item.text()
+        sharesId = self.share.split(' ')[0]
+        filelist = os.listdir(financialdir)
+        txtname = sharesId + '-' + endDate() + '.txt'
+        if filelist.__contains__(txtname):
+            with open(financialdir+txtname, 'r') as f:
+                text = f.read()
+        else:
+            text = getfinancialdata(sharesId)
+            with open(financialdir+txtname, 'w') as f:
+                f.write(text)
+        self.textBrowser.setText(text)
         print(self.share)
 
     def double_click(self):
@@ -436,8 +448,9 @@ class Strategy:
             max180 = data180['high'].max()
             min250 = data250['low'].min()
             max250 = data250['high'].max()
-            if (min60 * 1.3 > max60) | (min180 * 1.6 > max180) | (min250 * 2 > max250) : continue
-            if (MAdata.iloc[xx]['std10'] < MAdata.iloc[xx-1]['std10']) | (MAdata.iloc[xx]['MA10'] < MAdata.iloc[xx-1]['MA100']): continue
+            if (min60 * 1.3 > max60) | (min180 * 1.6 > max180) | (min250 * 2 > max250): continue
+            if (MAdata.iloc[xx]['std10'] < MAdata.iloc[xx - 1]['std10']) | (
+                    MAdata.iloc[xx]['MA10'] < MAdata.iloc[xx - 1]['MA100']): continue
             if (MAdata.iloc[xx]['MA10diff'] < 0) | (MAdata.iloc[xx - 1]['MA10diff'] < 0): continue
             if (MAdata.iloc[xx]['high'] < MAdata.iloc[xx]['MA10']) | (
                     MAdata.iloc[xx - 1]['high'] < MAdata.iloc[xx - 1]['MA10']): continue
@@ -464,9 +477,52 @@ def getshares():
     return data
 
 
+def getfinancialdata(ts_code):
+    ts.set_token('30f769d97409f6b9ff133558703d4cbe8302b4e6452330b2c11af044')
+    pro = ts.pro_api()
+    t1 = endDate()
+    t2 = (datetime.now() - relativedelta(years=1)).strftime('%Y%m%d')
+    res = ''
+    income = pro.income(ts_code=ts_code, start_date=t2, end_date=t1,
+                        fields='ts_code,ann_date,f_ann_date,end_date,comp_type,basic_eps,total_revenue,total_cogs,operate_profit,total_profit,n_income')
+    res = res + getreportbydata(income, '利润数据')
+    balance = pro.balancesheet(ts_code=ts_code, start_date=t2, end_date=t1,
+                               fields='ts_code,ann_date,f_ann_date,end_date,comp_type,total_cur_liab,total_ncl')
+    res = res + getreportbydata(balance, '资产负债')
+    forecast = pro.forecast(ts_code=ts_code, start_date=t2, end_date=t1,
+                            fields='ts_code,ann_date,type, p_change_min,p_change_max,net_profit_min,net_profit_max')
+    res = res + getreportbydata(forecast, '业绩预告')
+    express = pro.express(ts_code=ts_code, start_date=t2, end_date=t1,
+                          fields='ts_code,ann_date,end_date,revenue,total_profit,total_assets,diluted_roe,yoy_op,np_last_year')
+    res = res + getreportbydata(express, '业绩快报')
+    finaIndicator = pro.fina_indicator(ts_code=ts_code, start_date=t2, end_date=t1,
+                                       fields='ts_code,ann_date,end_date,eps,current_ratio,assets_turn,netdebt,debt_to_assets')
+    res = res + getreportbydata(finaIndicator, '财务指标数据')
+    mainbzP = pro.fina_mainbz(ts_code=ts_code, start_date=t2, end_date=t1, type='P')
+    res = res + getreportbydata(mainbzP, '主营业务构成(业务)')
+    mainbzD = pro.fina_mainbz(ts_code=ts_code, start_date=t2, end_date=t1, type='D')
+    res = res + getreportbydata(mainbzD, '主营业务构成（地区）')
+    return res
+
+def getreportbydata(data, title) :
+    res = title + ':         \n'
+    data = data.drop_duplicates()
+    dic = { 'end_date': '报告期', 'ann_date': '公告日期', 'f_ann_date': '实际公告日期', 'comp_type': '公司类型(1一般工商业2银行3保险4证券)', 'basic_eps': '基本每股收益', 'total_revenue': '营业总收入', 'total_cogs': '营业总成本', 'operate_profit': '营业利润', 'total_profit': '利润总额', 'n_income': '净利润(含少数股东损益)',
+           'total_cur_liab': '流动负债合计', 'total_ncl': '非流动负债合计', 'p_change_min': '预告净利润变动幅度下限（%）', 'p_change_max': '预告净利润变动幅度上限（%）', 'net_profit_min': '	预告净利润下限（万元）', 'net_profit_max': '预告净利润上限（万元）', 'revenue': '营业收入(元)', 'total_assets': '总资产(元)', 'diluted_roe': '净资产收益率(摊薄)(%)', 'yoy_op': '同比增长率:营业利润', 'np_last_year': '去年同期净利润',
+           'curr_type': '货币代码', 'type': '业绩预告类型', 'eps': '基本每股收益', 'current_ratio': '流动比率', 'assets_turn': '总资产周转率', 'netdebt': '净债务', 'debt_to_assets': '资产负债率', 'bz_item': '主营业务', 'bz_profit': '主营业务利润(元)', 'bz_sales': '主营业务收入(元)', 'bz_cost': '主营业务成本(元)'}
+    c = data.columns.values
+    for d in data.itertuples(index=False):
+        for i in range(0, len(c)):
+            if (c[i]=='ts_code'): continue
+            res = res + dic[c[i]] + ':' + str(d[i])+'  '
+        res = res + '\n'
+    return res
+
+
 if __name__ == '__main__':
     ashares = getshares()
     ashares.reset_index(drop=True, inplace=True)
     s = Strategy(ashares)
+
     diglogdemo = DialogDemo(ashares, s)
     diglogdemo.createDialog()
