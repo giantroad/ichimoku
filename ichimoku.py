@@ -329,6 +329,9 @@ class DialogDemo(QDialog, Ui_Dialog):
         else:
             text = getfinancialdata(sharesId)
             with open(financialdir+txtname, 'w') as f:
+                for i in filelist:
+                    if i.__contains__(sharesId):
+                        os.remove(os.path.join(financialdir, i))
                 f.write(text)
         self.textBrowser.setText(text)
         print(self.share)
