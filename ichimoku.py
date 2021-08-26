@@ -3,7 +3,6 @@ import os
 import sys
 import time
 
-import numpy
 import openpyxl as openpyxl
 import pandas
 import pandas as pd
@@ -25,7 +24,8 @@ from PyQt5 import QtGui, QtWidgets, QtCore
 from PyQt5.QtWidgets import QDialog, QApplication
 from primodial import Ui_Dialog
 from numpy import long
-#author : ye
+
+# author : ye
 mode = 0
 fig, ax = plt.subplots()
 datadir = './data/'
@@ -316,11 +316,11 @@ class DialogDemo(QDialog, Ui_Dialog):
         filelist = os.listdir(financialdir)
         txtname = sharesId + '-' + endDate() + '.txt'
         if filelist.__contains__(txtname):
-            with open(financialdir+txtname, 'r') as f:
+            with open(financialdir + txtname, 'r') as f:
                 text = f.read()
         else:
             text = getfinancialdata(sharesId)
-            with open(financialdir+txtname, 'w') as f:
+            with open(financialdir + txtname, 'w') as f:
                 for i in filelist:
                     if i.__contains__(sharesId):
                         os.remove(os.path.join(financialdir, i))
@@ -389,17 +389,28 @@ class Strategy:
     def __init__(self, shares):
         self.sl = shares
         filelist = os.listdir(datadir)
-        if filelist.__contains__(nameStrategy(self.sl[1][0])): return
+        if (filelist.__contains__(nameStrategy(self.sl[1][0]))) & (len(filelist) == len(shares)): return
         t1 = endDate()
         t2 = (datetime.now() - relativedelta(years=1)).strftime('%Y%m%d')
         ts.set_token('30f769d97409f6b9ff133558703d4cbe8302b4e6452330b2c11af044')
         pro = ts.pro_api()
-        for i in filelist: os.remove(os.path.join(datadir, i))
+        if not filelist.__contains__(nameStrategy(self.sl[1][0])):
+            for i in filelist: os.remove(os.path.join(datadir, i))
+        self.getdailyData(filelist, pro, t2, t1)
+
+    def getdailyData(self, filelist, pro, t2, t1):
         for tmp in self.sl.iterrows():
             print(tmp[1][1])
-            df = pro.daily(ts_code=tmp[1][1], start_date=t2, end_date=t1)
+            if filelist.__contains__(nameStrategy(tmp[1][1])): continue
+            try :
+                df = pro.daily(ts_code=tmp[1][1], start_date=t2, end_date=t1)
+            except :
+                print(tmp[1][1] + '出错')
+                continue
             df = df.iloc[::-1]
             df.to_excel(datadir + nameStrategy(tmp[1][1]))
+        filelist = os.listdir(datadir)
+        if not len(filelist) == len(self.sl): self.getdailyData(filelist, pro, t2, t1)
 
     # ichimoku strategy -> seeking Low priced stocks with potential
     def strategy1(self):
@@ -521,22 +532,36 @@ def getfinancialdata(ts_code):
     res = res + getreportbydata(mainbzD, '主营业务构成（地区）')
     return res
 
-def getreportbydata(data, title) :
+
+def getreportbydata(data, title):
     res = title + ':         \n'
     data = data.drop_duplicates()
-    dic = { 'end_date': '报告期', 'ann_date': '公告日期', 'f_ann_date': '实际公告日期', 'comp_type': '公司类型(1一般工商业2银行3保险4证券)', 'basic_eps': '基本每股收益', 'total_revenue': '营业总收入', 'total_cogs': '营业总成本', 'operate_profit': '营业利润', 'total_profit': '利润总额', 'n_income': '净利润(含少数股东损益)',
-           'total_cur_liab': '流动负债合计', 'total_ncl': '非流动负债合计', 'p_change_min': '预告净利润变动幅度下限（%）', 'p_change_max': '预告净利润变动幅度上限（%）', 'net_profit_min': '	预告净利润下限（万元）', 'net_profit_max': '预告净利润上限（万元）', 'revenue': '营业收入(元)', 'total_assets': '总资产(元)', 'diluted_roe': '净资产收益率(摊薄)(%)', 'yoy_op': '同比增长率:营业利润', 'np_last_year': '去年同期净利润',
-           'curr_type': '货币代码', 'type': '业绩预告类型', 'eps': '基本每股收益', 'current_ratio': '流动比率', 'assets_turn': '总资产周转率', 'netdebt': '净债务', 'debt_to_assets': '资产负债率', 'bz_item': '主营业务', 'bz_profit': '主营业务利润(元)', 'bz_sales': '主营业务收入(元)', 'bz_cost': '主营业务成本(元)'}
+    dic = {'end_date': '报告期', 'ann_date': '公告日期', 'f_ann_date': '实际公告日期', 'comp_type': '公司类型(1一般工商业2银行3保险4证券)',
+           'basic_eps': '基本每股收益', 'total_revenue': '营业总收入', 'total_cogs': '营业总成本', 'operate_profit': '营业利润',
+           'total_profit': '利润总额', 'n_income': '净利润(含少数股东损益)',
+           'total_cur_liab': '流动负债合计', 'total_ncl': '非流动负债合计', 'p_change_min': '预告净利润变动幅度下限（%）',
+           'p_change_max': '预告净利润变动幅度上限（%）', 'net_profit_min': '	预告净利润下限（万元）', 'net_profit_max': '预告净利润上限（万元）',
+           'revenue': '营业收入(元)', 'total_assets': '总资产(元)', 'diluted_roe': '净资产收益率(摊薄)(%)', 'yoy_op': '同比增长率:营业利润',
+           'np_last_year': '去年同期净利润',
+           'curr_type': '货币代码', 'type': '业绩预告类型', 'eps': '基本每股收益', 'current_ratio': '流动比率', 'assets_turn': '总资产周转率',
+           'netdebt': '净债务', 'debt_to_assets': '资产负债率', 'bz_item': '主营业务', 'bz_profit': '主营业务利润(元)',
+           'bz_sales': '主营业务收入(元)', 'bz_cost': '主营业务成本(元)'}
     c = data.columns.values
     for d in data.itertuples(index=False):
         for i in range(0, len(c)):
-            if (c[i]=='ts_code'): continue
-            res = res + dic[c[i]] + ':' + str(d[i])+'  '
+            if (c[i] == 'ts_code'): continue
+            res = res + dic[c[i]] + ':' + str(d[i]) + '  '
         res = res + '\n'
     return res
 
 
 if __name__ == '__main__':
+    if not os.path.exists(datadir):
+        os.mkdir(datadir)
+    if not os.path.exists(financialdir):
+        os.mkdir(financialdir)
+    if not os.path.exists(strategydir):
+        os.mkdir(strategydir)
     ashares = getshares()
     ashares.reset_index(drop=True, inplace=True)
     s = Strategy(ashares)
