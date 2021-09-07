@@ -1,17 +1,12 @@
 # Title
+![badge](https://github.com/giantroad/ichimoku/blob/main/sample/1.jpg)
+![badge](https://github.com/giantroad/ichimoku/blob/main/sample/2.jpg)
+The first day i stepped into Huaxi Futures Co.Ltd, my 'instructor' gave me this assignment - to build a trading platform based on his strategy, in spite the fact that i'm totally newcomer in both finance or python.Here comes my plan
+1.Get the certificate of sac 
+2.learn python as how i learn every programming language - programming it directly
 
-![banner]()
-
-![badge]()
-![badge]()
-[![license](https://img.shields.io/github/license/:user/:repo.svg)](LICENSE)
-[![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
-
-This is an example file with maximal choices selected.
-
-This is a long description.
-
-## Table of Contents
+As you see, it is done.I have learnt a lot,and plan to obtain more
+## Table of Contents 
 
 - [Security](#security)
 - [Background](#background)
