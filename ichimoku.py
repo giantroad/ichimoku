@@ -456,14 +456,28 @@ class Strategy:
             data = getDataByTscode(s, 1)
             print(s)
             if len(data) == 0: continue
+            ichimoku = Ichimoku(data)
+            i = ichimoku.run()
+            if len(i[(i['chikou_span'].isna()) & (~i['open'].isna())]) == 0: continue
+            ldd = i[(i['chikou_span'].isna()) & (~i['open'].isna())].iloc[-1]  # lastdaydata
+            #
+            if ldd['tenkan_sen'] < ldd['kijun_sen']: continue
+            #
+            smin = min(ldd['senkou_span_a'], ldd['senkou_span_b'])
+            if ldd['high'] < smin: continue
+            #
+            if len(i[~i['chikou_span'].isna()]) == 0: continue
+            ckd = i[~i['chikou_span'].isna()].iloc[-1]  # chikouData
+            if ckd['chikou_span'] < ckd['high']: continue
+
             # average
             data['MA10'] = data['close'].rolling(10).mean()
             data['MA100'] = data['close'].rolling(100).mean()
             data['MA10diff'] = data['MA10'].diff()
             # volatility
             data['std10'] = data['close'].rolling(10).std(ddof=0).rolling(10).mean()
-            if len(data) <= 30: continue
-            x = -21
+            x = -35
+            if len(data) <= -x: continue
             MAdata = data[x:-1]
             xx = -x - 2
             #
@@ -484,8 +498,13 @@ class Strategy:
                     MAdata.iloc[xx - 1]['high'] < MAdata.iloc[xx - 1]['MA10']): continue
             MAdata['negativebias'] = MAdata['low'] - MAdata['MA10']
             if MAdata['negativebias'].min() > 0: continue
-            if MAdata[MAdata.MA10 == MAdata['MA10'].min()].index[0] != \
-                    MAdata[MAdata.negativebias == MAdata['negativebias'].min()].index[0]: continue
+         # todo-more precision is needed
+         #  lowestpoint = MAdata[MAdata.negativebias == MAdata['negativebias'].min()].index.values[0]
+         #  if (lowestpoint == -x - 1) | (lowestpoint == 1): continue
+         #  if (MAdata.loc[lowestpoint-1]['close'] < MAdata.loc[lowestpoint]['close']) | (MAdata.loc[lowestpoint+1]['close'] < MAdata.loc[lowestpoint]['close']): continue
+         #  if MAdata[MAdata.MA10 == MAdata['MA10'].min()].index[0] != \
+         #  MAdata[MAdata.negativebias == MAdata['negativebias'].min()].index[0]: continue
+
             res.append(s + " " + sl[sl[1] == s][0].iloc[0])
         df = pd.DataFrame(res)
         filelist = os.listdir(strategydir)
