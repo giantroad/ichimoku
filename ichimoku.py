@@ -518,6 +518,7 @@ def getshares():
     # return ashareslist('ashares.xlsx')
     ts.set_token('30f769d97409f6b9ff133558703d4cbe8302b4e6452330b2c11af044')
     pro = ts.pro_api()
+    # df = pro.fund_basic(market='E')
     data = pro.stock_basic(exchange='', list_status='L', fields='name, ts_code')
     data.rename(columns={"name": 0, "ts_code": 1}, inplace=True)
     data = data[[0, 1]]
