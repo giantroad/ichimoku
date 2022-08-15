@@ -6,7 +6,6 @@ import time
 import openpyxl as openpyxl
 import pandas
 import pandas as pd
-import tushare as ts
 import numpy as np
 from datetime import datetime, timedelta
 import matplotlib.ticker as ticker
@@ -360,7 +359,7 @@ class DialogDemo(QDialog, Ui_Dialog):
         global fig, ax
         plt.close(fig)
         fig, ax = plt.subplots()
-        df = getDataByTscode(ts_code, mode)
+        df = getDataByTscode(ts_code, 1)
         lastday = len(df)
         vision(df, ts_name)
 
@@ -379,7 +378,7 @@ class Strategy:
         res = []
         for s in sl[1]:
             data = getDataByTscode(s, 1)
-            print(s)
+            print(s + "doing strategy")
             if len(data) == 0: continue
             ichimoku = Ichimoku(data)
             i = ichimoku.run()
