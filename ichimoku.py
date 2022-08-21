@@ -596,6 +596,9 @@ def getfinancialdatafromlocal(sharesId):
 
 
 if __name__ == '__main__':
+    pro = ts.pro_api()
+    ts.set_token('30f769d97409f6b9ff133558703d4cbe8302b4e6452330b2c11af044')
+    df = pro.daily(ts_code='000001.SZ', start_date=20220801, end_date=20220811)
     ashares = getProducts()
     ashares.reset_index(drop=True, inplace=True)
     s = Strategy()
