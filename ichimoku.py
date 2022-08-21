@@ -26,7 +26,7 @@ from primodial import Ui_Dialog
 from numpy import long
 
 # author : ye
-mode = 0
+mode = 1
 fig, ax = plt.subplots()
 datadir = './data/'
 strategydir = './strategy/'
@@ -49,8 +49,6 @@ def getDataByTscode(ts_code, mode):
     if mode == 1:
         filedir = os.path.join(datadir, nameStrategy(ts_code))
         byexcel = pd.read_excel(filedir)
-        byexcel.index = byexcel['Unnamed: 0']
-        byexcel = byexcel.drop(columns=['Unnamed: 0'])
         return byexcel
     if mode == 0:
         ts.set_token('30f769d97409f6b9ff133558703d4cbe8302b4e6452330b2c11af044')
@@ -63,8 +61,12 @@ def getDataByTscode(ts_code, mode):
 
 
 def nameStrategy(code):
+    if mode == 1:
+        filelist = os.listdir(datadir)
+        for i in filelist:
+            if i.__contains__(code):
+                return i
     return code + '-' + endDate() + '.xlsx'
-
 
 def nameStrategyfortxt(code):
     return code +  '.txt'
@@ -290,18 +292,12 @@ class DialogDemo(QDialog, Ui_Dialog):
             self.listWidget.addItems(self.ashares[1] + ' ' + self.ashares[0])
             self.ashares = self.allshares
         if stext == 'ichimoku strategy':
-            df = self.strategy.strategy1()
+            df = self.strategy.strategy_prediction()
             self.listWidget.addItems(df[0])
             df[1] = df[0].apply(lambda x: x.split(' ')[1])
             df[0] = df[0].apply(lambda x: x.split(' ')[0])
             self.ashares = df
 
-        if stext == 'trend tracking strategy':
-            df = self.strategy.strategy2()
-            self.listWidget.addItems(df[0])
-            df[1] = df[0].apply(lambda x: x.split(' ')[1])
-            df[0] = df[0].apply(lambda x: x.split(' ')[0])
-            self.ashares = df
 
     def list_click(self, item):
         self.share = item.text()
@@ -323,6 +319,8 @@ class DialogDemo(QDialog, Ui_Dialog):
         self.listWidget.addItems(ls[1] + ' ' + ls[0])
 
     def reset_push(self):
+        global  mode
+        mode = 0
         if not os.path.exists(datadir):
             os.mkdir(datadir)
         if not os.path.exists(financialdir):
@@ -332,9 +330,10 @@ class DialogDemo(QDialog, Ui_Dialog):
         ashares = getProducts()
         ashares.reset_index(drop=True, inplace=True)
         getdailyData(ashares)
-        getFinancialData(ashares)
-        s = Strategy(ashares)
-        s.strategy1()
+        # getFinancialData(ashares)
+        s = Strategy()
+        s.strategy_prediction()
+        mode = 1
 
     def createDialog(self):
         app = QApplication(sys.argv)
@@ -367,40 +366,57 @@ class DialogDemo(QDialog, Ui_Dialog):
 
 class Strategy:
 
-    def __init__(self, shares):
-        self.sl = shares
+    def __init__(self):
+        self.sl = getProducts()
+        self.sl.reset_index(drop=True, inplace=True)
+
+    def getIchimoku(self, s):
+        data = getDataByTscode(s, 1)
+        print(s + " doing calculating")
+        if len(data) == 0: return
+        ichimoku = Ichimoku(data)
+        return ichimoku.run()
+
+    def basic_stategy(self, start_index, end_index, i):
+        if len(i[(i['chikou_span'].isna()) & (~i['open'].isna())]) == 0: return False
+        lastDaysData = i[(i['chikou_span'].isna()) & (~i['open'].isna())]
+        lastdayDataInrange = lastDaysData.iloc[start_index:]
+        l = lastdayDataInrange;
+        ##########Basic principle##############
+        # 1. tenkan and kijun cross
+        if ~((l.iloc[start_index]['tenkan_sen'] <= l.iloc[start_index]['kijun_sen']) & (
+                l.iloc[end_index]['kijun_sen'] <= l.iloc[end_index]['tenkan_sen'])):
+            return False
+        # 2. Beyond the cloud
+        if ~((l.iloc[end_index]['senkou_span_a'] > l.iloc[end_index]['senkou_span_b']) & (
+                l.iloc[end_index]['close'] >= min(l.iloc[end_index]['senkou_span_a'], l.iloc[end_index]['senkou_span_b']))):
+            return False
+        return True
+        ##########Basic principle##############
+
+
 
     # ichimoku strategy -> seeking Low priced stocks with potential
-    def strategy(self):
-        filelist = os.listdir(strategydir)
+    def strategy_prediction(self):
+        filelist = os.listdir(datadir)
         if filelist.__contains__(nameStrategy('strategy1')):
-            return pd.read_excel(strategydir + nameStrategy('strategy1'), index_col=0)
+            return pd.read_excel(datadir + nameStrategy('strategy1'))
         sl = self.sl
         res = []
+        range = 7
         for s in sl[1]:
-            data = getDataByTscode(s, 1)
-            print(s)
-            if len(data) == 0: continue
-            ichimoku = Ichimoku(data)
-            i = ichimoku.run()
-            if len(i[(i['chikou_span'].isna()) & (~i['open'].isna())]) == 0: continue
-            ldd = i[(i['chikou_span'].isna()) & (~i['open'].isna())].iloc[-1]  # lastdaydata
-            #
-            if ldd['tenkan_sen'] < ldd['kijun_sen']: continue
-            #
-            smin = min(ldd['senkou_span_a'], ldd['senkou_span_b'])
-            if ldd['high'] < smin: continue
-            #
-            if len(i[~i['chikou_span'].isna()]) == 0: continue
-            ckd = i[~i['chikou_span'].isna()].iloc[-1]  # chikouData
-            if ckd['chikou_span'] < ckd['high']: continue
-            #
-            res.append(s + " " + sl[sl[1] == s][0].iloc[0])
+            try:
+                i = self.getIchimoku(s)
+                if self.basic_stategy(-1-range, -1, i):
+                    print(s + "looks good")
+                    res.append(s + " " + sl[sl[1] == s][0].iloc[0])
+            except:
+                print(s + " is wrong during calculating")
         df = pd.DataFrame(res)
-        filelist = os.listdir(strategydir)
+        filelist = os.listdir(datadir)
         for i in filelist:
             if i.__contains__('strategy1'): os.remove(os.path.join(strategydir, i))
-        df.to_excel(strategydir + nameStrategy('strategy1'))
+        df.to_excel(datadir + nameStrategy('strategy1'),  index=False)
         return df
 
     # # average strategy
@@ -520,7 +536,7 @@ def getProducts():
     if os.path.exists(filedir):
         data = pd.read_excel(filedir)
     else:
-        filelist = os.listdir("./")
+        filelist = os.listdir(datadir)
         for i in filelist:
             if i.__contains__("productList"):
                 os.remove(i)
@@ -551,9 +567,7 @@ def getdailyData(self):
             print(tmp[1][1] + '出错')
             continue
         df = df.iloc[::-1]
-        df.to_excel(datadir + nameStrategy(tmp[1][1]))
-    filelist = os.listdir(datadir)
-    if not len(filelist) == len(self): self.getdailyData(filelist)
+        df.to_excel(datadir + nameStrategy(tmp[1][1]), index=False)
 
 def getFinancialData(self):
     filelist = os.listdir(financialdir)
@@ -582,16 +596,8 @@ def getfinancialdatafromlocal(sharesId):
 
 
 if __name__ == '__main__':
-    if not os.path.exists(datadir):
-        os.mkdir(datadir)
-    if not os.path.exists(financialdir):
-        os.mkdir(financialdir)
-    if not os.path.exists(strategydir):
-        os.mkdir(strategydir)
     ashares = getProducts()
     ashares.reset_index(drop=True, inplace=True)
-    getdailyData(ashares)
-    s = Strategy(ashares)
-    s.strategy()
+    s = Strategy()
     diglogdemo = DialogDemo(ashares, s)
     diglogdemo.createDialog()
